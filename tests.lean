@@ -2,12 +2,9 @@ import .main
 
 set_option profiler true
 
-example : ∀ x : int, 1 < x → 2 ≤ x := by omega
-theorem foo : ∀ x : int, 1 < x → x < 4 → x = 2 ∨ x = 3 := by omega
 
-#print foo
+example {x y z w v : int} : 100 = x → x = y → y = z → z = w → w = v → v = 100 := by omega
 
-#exit
 example : ∀ x : int, (x = 5 ∨ x = 7) → 2 < x := by omega
 example : ∀ x : int, x ≤ -x → x ≤ 0 := by omega
 example : ∀ x y : int, (x ≤ 5 ∧ y ≤ 3) → x + y ≤ 8 := by omega 

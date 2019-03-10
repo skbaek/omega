@@ -13,18 +13,7 @@ attribute [sugar]
   classical.imp_iff_not_or
   classical.iff_iff
 
-meta def desugar := `[try {simp only with sugar at *}]
-
-meta def set_goal_to_false : tactic unit :=
-do gx ← target,
-   match gx with 
-   | `(false)        := skip
-   | `(¬ %%px)       := intro_fresh >> skip
-   | `(%%px → false) := intro_fresh >> skip
-   | _         := 
-     apply `(@classical.by_contradiction %%gx) >> 
-     intro_fresh >> skip
-   end
+meta def desugar := `[try {simp only with sugar}]
 
 meta def get_polytope : tactic polytope :=
 do `(polytope.unsat %%tsx) ← target, 
@@ -56,12 +45,6 @@ meta def clausify : tactic unit :=
 to_expr ``(uniclo_of_unsat_clausify _) >>= apply >> skip
 
 meta def omega : tactic unit :=
-do rev, 
-   desugar, 
-   reify, 
-   clausify, 
-   discharge_clauses,
-   skip
+do rev, desugar, reify, clausify, 
+   discharge_clauses, skip
 
-example (x y : int) (h1 : x ≤ 5 ∧ y > 3) : x - y < 8 := 
-by omega 

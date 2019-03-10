@@ -95,21 +95,21 @@ def subscript_digit : char → char
 def subscript_digits (ds : string) : string := 
 ⟨ds.data.map subscript_digit⟩ 
 
-meta def to_string_monomial (m : nat) (i : int) : string :=
-(to_fmt i).to_string ++ "x" ++ subscript_digits (to_fmt m).to_string 
+def to_string_monomial (m : nat) (i : int) : string :=
+i.repr ++ "x" ++ subscript_digits m.repr
 
-meta def to_string_aux : nat → list int → string 
+def to_string_aux : nat → list int → string 
 | m []      := ""
 | m [i]     := to_string_monomial m i 
 | m (i::is) := to_string_monomial m i ++ " + " ++ to_string_aux (m+1) is
 
-meta def to_string (t : term) : string :=
-(to_fmt t.const).to_string ++ " + " ++ to_string_aux 0 t.coeffs
+def repr (t : term) : string :=
+t.const.repr ++ " + " ++ to_string_aux 0 t.coeffs
 
-meta instance has_repr : has_repr term := ⟨to_string⟩ 
+instance has_repr : has_repr term := ⟨repr⟩  
 
 meta instance has_to_format : has_to_format term := 
-⟨λ t, to_string t⟩ 
+⟨λ t, repr t⟩ 
 
 @[omega] def val (v : nat → int) : term → int 
 | ⟨c,cfs⟩ := c + val_aux v 0 cfs
@@ -147,12 +147,6 @@ def mul (i : int) (t : term) :=
 val v (mul i t) = i * (val v t) := 
 begin cases t, simp_omega [mul, mul_add, add_mul] end
 
-def factor : term → option term 
-| ⟨c,cfs⟩ := 
-  let i : int := ↑(ints.gcd cfs) in
-  if i ∣ c 
-  then some (div i ⟨c,cfs⟩) 
-  else none
 
 def fresh_idx (t : term) : nat := t.coeffs.length
 

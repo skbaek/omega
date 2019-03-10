@@ -42,7 +42,19 @@ do `(_ = _) ← infer_type x | return ff,
 meta def is_le (x : expr) : tactic bool :=
 do `(_ ≤ _) ← infer_type x | return ff,
    return tt
+
+meta def is_lia : expr → bool 
+| `(¬ %% p)               := is_lia p
+| `(%% p ∨ %%q)           := is_lia p && is_lia q
+| `(%% p ∧ %%q)           := is_lia p && is_lia q
+| `(@eq int _ _)          := true
+| `(@has_le.le int _ _ _) := true
+| _                       := false
+
+meta def is_lia_hyp (x : expr) : tactic bool :=
+do tx ← infer_type x,
+   return $ is_lia tx
     
 meta def rev : tactic unit :=
-do revert_cond_all is_hyp,
+do revert_cond_all is_lia_hyp,
    revert_cond_all is_int

@@ -1,4 +1,4 @@
-import .simp_omega --tactic.linarith
+import .simp_omega 
 
 variables {α β : Type}
 
@@ -45,7 +45,6 @@ notation as `{` m `↦` a `}` := set a as m
 | _ [] := (0 : α)
 | 0 (i::is) := i 
 | (n+1) (i::is) := get n is 
-notation v `[` n `]` := get n v
 
 def map_with_idx_core (f : nat → α → β) : nat → list α → list β  
 | k []      := []

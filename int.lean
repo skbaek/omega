@@ -1,5 +1,4 @@
-import .list
-
+import .list data.int.basic
 
 def ints.gcd : list int → nat
 | []      := 0
