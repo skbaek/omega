@@ -1,4 +1,4 @@
-import .rev .reify .dnf .search 
+import .rev .reify .dnf .scalar
 
 open tactic
 
@@ -21,10 +21,9 @@ do `(polytope.unsat %%tsx) ← target,
    return ts
 
 meta def discharge_clause : tactic unit :=
-do p ← get_polytope >>= search, 
-   to_expr ``(unsat_of_correct %%`(p) _) >>= apply,
-   to_expr ``(trivial) >>= apply,
-   skip 
+do ks ← get_polytope >>= scalar.search, 
+   pexpr.apply ``(scalar.unsat_of_unsat_comb %%`(ks) _), 
+   pexpr.apply ``(trivial), skip
 
 meta def discharge_clauses : tactic unit :=
 ( pexpr.apply ``(@list.forall_mem_nil (list term) polytope.unsat) >> skip) <|> 
@@ -47,4 +46,3 @@ to_expr ``(uniclo_of_unsat_clausify _) >>= apply >> skip
 meta def omega : tactic unit :=
 do rev, desugar, reify, clausify, 
    discharge_clauses, skip
-
