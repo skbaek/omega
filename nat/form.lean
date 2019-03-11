@@ -1,4 +1,6 @@
-import .preterm .simp_omega .logic
+import .preterm ..simp_omega  ..logic
+
+namespace nat 
 
 @[derive has_reflect]
 inductive form 
@@ -20,7 +22,7 @@ notation p `∧*` q := form.and p q
 -- | (p ∨* q) := 
 -- | (p ∧* q) := 
 
-def valuation.cons (i : int) (v : nat → int) : nat → int
+def valuation.cons (i : nat) (v : nat → nat) : nat → nat
 | 0     := i 
 | (k+1) := v k
 
@@ -30,16 +32,30 @@ open tactic
 
 namespace form
 
-@[omega] def holds (v : nat → int) : form → Prop 
+@[omega] def holds (v : nat → nat) : form → Prop 
 | (t =* s) := t.val v = s.val v
 | (t ≤* s) := t.val v ≤ s.val v
 | (¬* p)   := ¬ p.holds
 | (p ∨* q) := p.holds ∨ q.holds
 | (p ∧* q) := p.holds ∧ q.holds
 
-@[omega] def uniclo_core (p : form) : nat → (nat → int) → Prop 
+@[omega] def uniclo_core (p : form) : nat → (nat → nat) → Prop 
 | 0     v := p.holds v
-| (k+1) v := ∀ i : int, uniclo_core k (i::v) 
+| (k+1) v := ∀ i : nat, uniclo_core k (i::v) 
+
+def neg_free : form → Prop 
+| (t =* s) := true
+| (t ≤* s) := true
+| (p ∨* q) := neg_free p ∧ neg_free q
+| (p ∧* q) := neg_free p ∧ neg_free q
+| _        := false
+
+def sub_free : form → Prop 
+| (t =* s) := t.sub_free ∧ s.sub_free
+| (t ≤* s) := t.sub_free ∧ s.sub_free
+| (¬* p)   := p.sub_free
+| (p ∨* q) := p.sub_free ∧ q.sub_free
+| (p ∧* q) := p.sub_free ∧ q.sub_free
 
 def fresh_idx : form → nat 
 | (t =* s) := max t.fresh_idx s.fresh_idx
@@ -110,6 +126,7 @@ open tactic
 meta def form.induce (t : tactic unit := skip) : tactic unit := 
 `[ intro p, induction p with t s t s p ih p q ihp ihq p q ihp ihq; t]
 
+end nat
 
 
 

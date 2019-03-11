@@ -1,4 +1,6 @@
-import .form .polytope
+import .form ..polytope
+
+namespace int
 
 @[omega] def push_neg : form → form 
 | (p ∨* q) := (push_neg p) ∧* (push_neg q)
@@ -38,11 +40,11 @@ begin
   { cases h1, constructor; [{apply ihp}, {apply ihq}]; assumption }
 end
 
-def is_nf : form → Prop 
+def neg_free : form → Prop 
 | (t =* s) := true
 | (t ≤* s) := true
-| (p ∨* q) := is_nf p ∧ is_nf q
-| (p ∧* q) := is_nf p ∧ is_nf q
+| (p ∨* q) := neg_free p ∧ neg_free q
+| (p ∧* q) := neg_free p ∧ neg_free q
 | _        := false
 
 lemma is_nnf_nnf : ∀ p, is_nnf (nnf p) := 
@@ -69,9 +71,9 @@ end
 | (p ∧* q) := (nf p) ∧* (nf q)
 | p        := p
 
-lemma is_nf_nf : ∀ p, is_nnf p → is_nf (nf p) := 
+lemma neg_free_nf : ∀ p, is_nnf p → neg_free (nf p) := 
 begin
-  form.induce `[intro h1, try {simp only [is_nf, nf]}, try {trivial}],
+  form.induce `[intro h1, try {simp only [neg_free, nf]}, try {trivial}],
   { cases p; try {cases h1}; try {trivial},
     constructor; trivial },
   { cases h1, constructor; [{apply ihp}, {apply ihq}]; assumption },
@@ -113,7 +115,7 @@ def dnf (p : form) : list polytope :=
 dnf_core $ nf $ nnf p
 
 lemma exists_polytope_holds {v} : 
-  ∀ {p : form}, is_nf p → p.holds v → ∃ c ∈ (dnf_core p), polytope.holds v c := 
+  ∀ {p : form}, neg_free p → p.holds v → ∃ c ∈ (dnf_core p), polytope.holds v c := 
 begin
   form.induce `[intros h1 h2],
   { apply list.exists_mem_cons_of, --constructor, 
@@ -141,14 +143,14 @@ begin
 end
 
 lemma exists_polytope_sat {p : form} : 
-  is_nf p → p.sat → ∃ c ∈ (dnf_core p), polytope.sat c := 
+  neg_free p → p.sat → ∃ c ∈ (dnf_core p), polytope.sat c := 
 begin
   intros h1 h2, cases h2 with v h2,
   rcases (exists_polytope_holds h1 h2) with ⟨c,h3,h4⟩,
   refine ⟨c,h3,v,h4⟩
 end
 
-lemma form_unsat_of_polytopes_unsat {p : form} : 
+lemma unsat_of_unsat_dnf {p : form} : 
 polytopes.unsat (dnf p) → p.unsat := 
 begin
   intros h1 h2, 
@@ -156,10 +158,10 @@ begin
   rw ← list.not_exists_mem_not at h1,
   apply h1, 
   simp only [polytope.unsat, classical.not_not], 
-  apply exists_polytope_sat (is_nf_nf _ (is_nnf_nnf _)),
+  apply exists_polytope_sat (neg_free_nf _ (is_nnf_nnf _)),
   apply form.sat_of_implies_of_sat implies_nf,
   have hrw := exists_iff_exists (@nnf_equiv p),
   apply hrw.elim_right h2
 end
 
-
+end int

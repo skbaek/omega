@@ -1,4 +1,6 @@
-import logic.basic
+import logic.basic  data.option
+
+open tactic
 
 variables {α : Type} {p q r s : Prop}
 
@@ -25,6 +27,12 @@ begin
   intro h1, constructor; intros h2 a;
   [{rw (h1 a).symm}, {rw h1}]; apply h2
 end 
+
+lemma or_of_or : (p → q) → (r → s) → (p ∨ r) → (q ∨ s) :=
+begin
+  intros h1 h2 h3, cases h3; 
+  [{left, apply h1}, {right, apply h2}]; assumption 
+end
 
 lemma and_of_and : (p → q) → (r → s) → (p ∧ r) → (q ∧ s) :=
 begin
@@ -57,6 +65,12 @@ begin
   exfalso, apply h2 h1
 end
 
+lemma iff_of_left_of_right {p q : Prop} : p → q → (p ↔ q) := 
+begin intros hp hq, constructor; intro h; assumption end
+
+lemma iff_of_not_of_not {p q : Prop} :
+  ¬p → ¬q → (p ↔ q) := 
+begin intros hp hq, constructor; intro h; contradiction end
 
 namespace classical
 
@@ -78,5 +92,6 @@ lemma not_exists_not :
 lemma not_not : ¬¬p ↔ p := _root_.not_not
 
 lemma not_and_distrib : ¬(p ∧ q) ↔ ¬p ∨ ¬q := not_and_distrib
+
 
 end classical

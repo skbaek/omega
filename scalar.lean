@@ -2,8 +2,6 @@ import .polytope
 
 open tactic
 
-namespace scalar
-
 meta def trisect (m : nat) :  
   list (list nat × term) → (list (list nat × term) × 
   list (list nat × term) × list (list nat × term)) 
@@ -69,6 +67,15 @@ lemma comb_holds {v} :
       apply list.forall_mem_of_forall_mem_cons h }
   end
 
+def unsat_comb' (ts ns) : Prop :=
+(comb ts ns).const < 0 ∧ ∀ x ∈ (comb ts ns).coeffs, x = (0 : int)
+
+lemma unsat_comb'_of (ts ns) : 
+(comb ts ns).const < 0 → 
+(∀ x ∈ (comb ts ns).coeffs, x = (0 : int)) → 
+unsat_comb' ts ns := 
+begin intros h1 h2, exact ⟨h1,h2⟩ end
+
 def unsat_comb (ts ns) : Prop :=
 let t := comb ts ns in 
 if t.const < 0 ∧ ∀ x ∈ t.coeffs, x = (0 : int)
@@ -91,4 +98,11 @@ begin
     rw if_neg h4 at h1, exact h1 }
 end
 
-end scalar
+lemma unsat_of_unsat_comb' (ts : polytope) (ns : list nat) :
+  (unsat_comb' ts ns) → ts.unsat :=
+begin
+  intro h1, apply unsat_of_unsat_comb ns,
+  simp only [unsat_comb'] at h1, 
+  simp only [unsat_comb], 
+  rw if_pos h1, trivial
+end

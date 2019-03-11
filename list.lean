@@ -53,6 +53,8 @@ def map_with_idx_core (f : nat → α → β) : nat → list α → list β
 def map_with_idx (f : nat → α → β) (as : list α) : list β :=
 map_with_idx_core f 0 as
 
+def snoc_if_oob : nat → α → list α → list α 
+| m a as := if m < as.length then as else as ++ [a]
 
 local attribute [instance] classical.dec 
 
@@ -79,6 +81,7 @@ begin
   intros h1 h2 a h3, apply h2,
   rw subset_def at h1, apply h1 h3
 end
+
 
 #exit
 instance decidable_forall_mem' (p : α → Prop) [h0 : decidable_pred p] :
@@ -405,11 +408,6 @@ lemma map_integrate (f : α → β) (as2) : ∀ k as1,
 | (k+1) (a1::as1) := 
   begin simp [integrate], rw map_integrate end
 
-
-
-open tactic classical
-
-
 lemma not_exists_mem {P : α → Prop} {as : list α} :
   ¬ (∃ x ∈ as, P x) ↔ ∀ x ∈ as, ¬ P x := 
 begin
@@ -419,6 +417,7 @@ begin
   { intro hc, cases hc with x hx, cases hx,
     apply h x; assumption }
 end
+
 
 local attribute [instance] classical.prop_decidable
 

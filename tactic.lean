@@ -51,10 +51,6 @@ meta def commit (t1 t2 t3 : tactic unit) :=
 monad.cond ((t1 >> return tt) <|> return ff) t2 t3
 notation t1 `!>>` t2 `|` t3 := commit t1 t2 t3
 
--- meta def try_solve (t1 t2 : tactic unit) : tactic unit := 
--- t1 !>> (do n ← num_goals, if n = 0 then skip else t2), t2 
--- infixr `?>>` : 500 := try_solve 
-
 meta def commit_seq (t1 t2 t3 : tactic unit) : tactic unit :=
  do g::gs ← get_goals,
     set_goals [g],
@@ -64,4 +60,15 @@ meta def commit_seq (t1 t2 t3 : tactic unit) : tactic unit :=
 
 notation t1 `!;` t2 `|` t3 : 500 := commit_seq t1 t2 t3
 
+meta def is_hyp (x : expr) : tactic bool :=
+infer_type x >>= is_prop
 
+meta def revert_cond (t : expr → tactic bool) (x : expr) : tactic unit :=
+mcond (t x) (revert x >> skip) skip 
+
+meta def revert_cond_all (t : expr → tactic bool) : tactic unit :=
+do hs ← local_context, mmap (revert_cond t) hs, skip
+
+meta def try_all : list (tactic unit) → tactic unit 
+| []      := skip
+| (t::ts) := seq (try t) (try_all ts)
