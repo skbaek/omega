@@ -2,7 +2,23 @@ import logic.basic  data.option
 
 open tactic
 
-variables {α : Type} {p q r s : Prop}
+variables {α β γ : Type} {p q r s : Prop}
+
+lemma fun_mono_2 {p : α → β → γ} {a1 a2 : α} {b1 b2 : β} :
+  a1 = a2 → b1 = b2 → (p a1 b1 = p a2 b2) :=
+λ h1 h2, by rw [h1, h2]
+
+lemma pred_mono_2 {p : α → β → Prop} {a1 a2 : α} {b1 b2 : β} :
+  a1 = a2 → b1 = b2 → (p a1 b1 ↔ p a2 b2) :=
+λ h1 h2, by rw [h1, h2]
+
+lemma sub_eq_sub_of_eq_of_eq [has_sub α] {a b c d : α} :
+  a = b → c = d → a - c = b - d :=
+λ h1 h2, by rw [h1, h2]
+
+lemma eq_iff_eq_of_eq_of_eq [has_sub α] {a b c d : α} :
+  a = b → c = d → (a = c ↔ b = d) :=
+λ h1 h2, by rw [h1, h2]
 
 lemma imp_of_imp (p) {q} : (p → q) → (p → q) := id
 
@@ -71,6 +87,9 @@ begin intros hp hq, constructor; intro h; assumption end
 lemma iff_of_not_of_not {p q : Prop} :
   ¬p → ¬q → (p ↔ q) := 
 begin intros hp hq, constructor; intro h; contradiction end
+
+lemma not_of_imp_of_not : (p → q) → ¬q → ¬p :=
+begin intros h1 h2 h3, apply h2 (h1 h3) end
 
 namespace classical
 

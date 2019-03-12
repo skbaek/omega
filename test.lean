@@ -3,6 +3,16 @@ import tactic.norm_num
 import order.basic
 
 
+example : false → false → true :=
+begin
+
+  intro h1, 
+  intro h2
+
+end
+
+#exit
+
 #check int.add_lt_iff_lt_sub
 
 #exit

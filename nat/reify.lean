@@ -42,12 +42,12 @@ meta def to_form : expr → tactic form
 | `(_ → %%px) := to_form px
 | _ := failed
 
-meta def reify : tactic unit :=
-do gx ← target,
-   p ← to_form gx, 
-   x ← to_expr ``(form.uniclo %%`(p)),
-   to_expr ``(imp_of_imp %%x) >>= apply, 
-   intro_fresh >>= apply,
-   skip
+-- meta def reify : tactic unit :=
+-- do gx ← target,
+--    p ← to_form gx, 
+--    x ← to_expr ``(form.uniclo %%`(p)),
+--    to_expr ``(imp_of_imp %%x) >>= apply, 
+--    intro_fresh >>= apply,
+--    skip
 
 end nat

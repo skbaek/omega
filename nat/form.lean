@@ -64,6 +64,44 @@ def fresh_idx : form → nat
 | (p ∨* q) := max p.fresh_idx q.fresh_idx
 | (p ∧* q) := max p.fresh_idx q.fresh_idx
 
+def holds_constant {v w : nat → nat} :
+  ∀ p : form, 
+  ( (∀ x < p.fresh_idx, v x = w x) → 
+    (p.holds v ↔ p.holds w) ) 
+| (t =* s) h1 := 
+  begin
+    simp_omega, apply pred_mono_2;
+    apply preterm.val_constant;
+    intros x h2; apply h1 _ (lt_of_lt_of_le h2 _),
+    apply le_max_left, apply le_max_right
+  end
+| (t ≤* s) h1 := 
+  begin
+    simp_omega, apply pred_mono_2;
+    apply preterm.val_constant;
+    intros x h2; apply h1 _ (lt_of_lt_of_le h2 _),
+    apply le_max_left, apply le_max_right
+  end
+| (¬* p)   h1 := 
+  begin
+    apply not_iff_not_of_iff,
+    apply holds_constant p h1
+  end
+| (p ∨* q) h1 := 
+  begin
+    simp_omega, apply or_iff_or;
+    apply holds_constant;
+    intros x h2; apply h1 _ (lt_of_lt_of_le h2 _),
+    apply le_max_left, apply le_max_right
+  end
+| (p ∧* q) h1 := 
+  begin
+    simp_omega, apply and_iff_and;
+    apply holds_constant;
+    intros x h2; apply h1 _ (lt_of_lt_of_le h2 _),
+    apply le_max_left, apply le_max_right
+  end
+
 def uniclo (p : form) : Prop := 
 uniclo_core p p.fresh_idx (λ _, 0)
 

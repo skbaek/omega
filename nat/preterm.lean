@@ -11,7 +11,6 @@ inductive preterm : Type
 | add : preterm → preterm → preterm 
 | sub : preterm → preterm → preterm 
 
-
 notation `&` k := preterm.cst k
 infix `**` : 300 := preterm.var 
 notation t `+*` s := preterm.add t s
@@ -27,7 +26,7 @@ namespace preterm
 meta def induce (tac : tactic unit := tactic.skip) : tactic unit := 
 `[ intro t, induction t with m m n t s iht ihs t s iht ihs; tac]
 
-@[omega] def val (v : nat → nat) : preterm → nat 
+def val (v : nat → nat) : preterm → nat 
 | (& i) := i
 | (i ** n) := 
   if i = 1 
@@ -36,11 +35,54 @@ meta def induce (tac : tactic unit := tactic.skip) : tactic unit :=
 | (t1 +* t2) := t1.val + t2.val 
 | (t1 -* t2) := t1.val - t2.val 
 
+@[omega] lemma val_const {v m} : (& m).val v = m := rfl
+
+@[omega] lemma val_var {v m n} :
+  (m ** n).val v = m * (v n) :=
+begin
+  simp only [val], by_cases h1 : m = 1,
+  rw [if_pos h1, h1, one_mul],
+  rw [if_neg h1, mul_comm], 
+end
+
+@[omega] lemma val_add {v t s} : (t +* s).val v = t.val v + s.val v := rfl
+
+@[omega] lemma val_sub {v t s} : (t -* s).val v = t.val v - s.val v := rfl
+
 def fresh_idx : preterm → nat 
 | (& _)      := 0
 | (i ** n)   := n + 1
 | (t1 +* t2) := max t1.fresh_idx t2.fresh_idx 
 | (t1 -* t2) := max t1.fresh_idx t2.fresh_idx 
+
+def val_constant (v w : nat → nat) :
+  ∀ t : preterm, (∀ x < t.fresh_idx, v x = w x) → 
+  t.val v = t.val w 
+| (& n)      h1 := rfl 
+| (m ** n)   h1 := 
+  begin
+    simp_omega, apply congr_arg (λ y, m * y),
+    apply h1 _ (lt_add_one _) 
+  end 
+| (t +* s) h1 := 
+  begin
+    simp_omega, 
+    have ht := val_constant t 
+      (λ x hx, h1 _ (lt_of_lt_of_le hx (le_max_left _ _))),
+    have hs := val_constant s 
+      (λ x hx, h1 _ (lt_of_lt_of_le hx (le_max_right _ _))),
+    rw [ht, hs]
+  end 
+| (t -* s) h1 := 
+  begin
+    simp_omega, 
+    have ht := val_constant t 
+      (λ x hx, h1 _ (lt_of_lt_of_le hx (le_max_left _ _))),
+    have hs := val_constant s 
+      (λ x hx, h1 _ (lt_of_lt_of_le hx (le_max_right _ _))),
+    rw [ht, hs]
+  end 
+
 
 def repr : preterm → string 
 | (& i)      := i.repr
@@ -63,20 +105,7 @@ def sub_count : preterm → nat
 | (t1 +* t2) := t1.sub_count + t2.sub_count
 | (t1 -* t2) := 1 + t1.sub_count + t2.sub_count 
 
-def sub_terms : preterm → option (preterm × preterm)
-| (& i)      := none
-| (i ** n)   := none
-| (t +* s) := t.sub_terms <|> s.sub_terms
-| (t -* s) := t.sub_terms <|> s.sub_terms <|> some (t,s)
 
-
-def sub_subst (t s r : preterm) : preterm → preterm 
-| t@(& m)    := t
-| t@(m ** n) := t
-| (x +* y) := x.sub_subst +* y.sub_subst
-| (x -* y) := 
-  if x = t ∧ y = s then r
-  else x.sub_subst +* y.sub_subst
 
 def sub_occurs (t s : preterm) : preterm → Prop 
 | (& m)    := false
@@ -193,14 +222,7 @@ end preterm
   (canonize t).val (λ x, ↑(v x)) = t.val v
 | (& i) h1 := by simp_omega
 | (i ** n) h1 := 
-  begin 
-    simp_omega, 
-    rw [← int.coe_nat_mul],
-    apply congr_arg,
-    apply ite.rec; intro h1,
-    { simp only [one_mul, h1] },
-    { rw mul_comm }
-  end
+  begin simp_omega, rw ← int.coe_nat_mul end
 | (t +* s) h1 := 
   by simp_omega [val_canonize h1.left, 
     val_canonize h1.right, int.coe_nat_add]

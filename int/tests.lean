@@ -33,6 +33,5 @@ meta def tests : list expr :=
 
 set_option profiler true
 
-
 example : true := 
 by do BatchTest int.omega 0 tests
