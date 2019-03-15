@@ -14,7 +14,7 @@ meta structure ee_state :=
 meta def abort {α : Type} : eqelim α := ⟨λ x, failed⟩ 
 
 private meta def mk_eqelim_state (eqs les : list term) : tactic ee_state := 
-return ⟨eqs,les,[]⟩ 
+return (ee_state.mk eqs les [])-- ⟨eqs,les,[]⟩ 
 
 meta def get_eqs : eqelim (list term) := ee_state.eqs <$> get
 meta def get_les : eqelim (list term) := ee_state.les <$> get
@@ -50,10 +50,10 @@ notation t1 `!>>=` t2 `;` t3 := ee_commit t1 t2 t3
 private meta def of_tactic {α : Type} : tactic α → eqelim α := state_t.lift 
 
 meta def get_gcd (t : term) : eqelim int :=
-pure ↑(ints.gcd t.coeffs) 
+pure ↑(ints.gcd t.snd) 
 
 meta def factor (i : int) (t : term) : eqelim term :=
-if i ∣ t.const 
+if i ∣ t.fst 
 then add_ee (ee.factor i) >> pure (t.div i) 
 else abort
 
@@ -73,7 +73,7 @@ meta def find_min_coeff_core : list int → eqelim (int × nat)
 --   m = index of nonzero coefficient with smallest absolute value
 --   i = nonzero coefficient with smallest absolute value (positive)
 meta def find_min_coeff (t : term) : eqelim (int × nat × term) :=
-do (i,n) ← find_min_coeff_core t.coeffs,
+do (i,n) ← find_min_coeff_core t.snd,
    if 0 < i
    then pure (i,n,t)
    else add_ee (ee.neg) >> pure (-i,n,t.neg)
@@ -92,8 +92,8 @@ then do eqs ← get_eqs,
               set_eqs (eqs.map (cancel n u)),
               set_les (les.map (cancel n u)),
               add_ee (ee.cancel n)
-else let v : term := reduce n u in 
-     let r : term := rhs n u in 
+else let v : term := coeffs_reduce n u.fst u.snd in 
+     let r : term := rhs n u.fst u.snd in 
      do eqs ← get_eqs, 
         les ← get_les,
               set_eqs (v::eqs.map (subst n r)),

@@ -4,8 +4,6 @@ import .term
 
 namespace clause
 
-meta instance has_to_format : has_to_format clause := by apply_instance
-
 def weaker : clause → clause → Prop 
 | ⟨eqs1,les1⟩ ⟨eqs2,les2⟩ := eqs1 ⊆ eqs2 ∧ les1 ⊆ les2 
 

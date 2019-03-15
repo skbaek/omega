@@ -66,7 +66,7 @@ lemma and_iff_and {p p' q q' : Prop} :
   (p ↔ p') → (q ↔ q') → ((p ∧ q) ↔ (p' ∧ q')) := 
 begin intros hp hq, rewrite hp, rewrite hq end
 
-lemma ite.rec {p} [hd : decidable p] {q : α → Prop} {f g : α} 
+lemma ite.rec {p} [hd : decidable p] {f g : α} (q : α → Prop)
   (hf : p → q f) (hg : ¬ p → q g) : q (@ite p hd α f g) := 
 begin
   unfold ite, tactic.unfreeze_local_instances, 

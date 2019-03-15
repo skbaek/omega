@@ -22,15 +22,19 @@ lemma rhs_correct_aux {m v} {as : coeffs} :
 | (k+1) := 
   begin 
     simp_omega, 
-    cases @rhs_correct_aux k with d h1, 
-    rw [← h1, list.get_map, symmod_eq,
-      sub_mul],
-    existsi (d + (symdiv (list.get k as) m * v k)),
-    ring,
+    cases @rhs_correct_aux k with d h1, rw ← h1,
+    by_cases hk : k < as.length, 
+    { rw [list.get_map hk, symmod_eq, sub_mul], 
+      existsi (d + (symdiv (list.get k as) m * v k)), 
+      ring }, 
+    { rw not_lt at hk, 
+      repeat {rw list.get_eq_zero_of_le},  
+      existsi d, rw add_assoc, exact hk,
+      simp only [hk, list.length_map] }
   end
 
 lemma rhs_correct {v b} {as : coeffs} (n) :
-  0 ≤ as.get n → 
+  0 < as.get n → 
   0 = term.val v (b,as) → 
   v n = term.val (v⟨n ↦ sgm v b as n⟩) (rhs n b as) := 
 begin
@@ -39,7 +43,7 @@ begin
   let m := a_n + 1,
   have h3 : m ≠ 0 := 
        begin 
-         apply ne_of_gt, apply lt_of_le_of_lt h0,
+         apply ne_of_gt, apply lt_trans h0,
          simp [a_n, m],
        end,
   have h2 : m * (sgm v b as n) = (symmod b m) + 
@@ -68,8 +72,13 @@ begin
         (coeffs.val_except n v (as.map (λ x, symmod x m))) :
       begin
         rw h2, simp, rw ← coeffs.val_except_add_eq n,
-        simp, rw list.get_map, simp [a_n, m], 
-        rw [add_comm, symmod_add_one], ring
+        simp, 
+        have hn : n < as.length,
+        { by_contra hc, rw not_lt at hc,
+          rw (list.get_eq_zero_of_le n hc) at h0,
+          cases h0 },
+        rw list.get_map hn, simp [a_n, m], 
+        rw [add_comm, symmod_add_one h0], ring
       end
   ... = term.val (v⟨n↦sgm v b as n⟩) (rhs n b as) : 
       begin
@@ -94,7 +103,7 @@ def coeffs_reduce : nat → int → list int → term
   (sym_sym m b, (as.map (sym_sym m)){n ↦ -a}) 
 
 lemma coeffs_reduce_correct {v b} {as : coeffs} {n} :
-  0 ≤ as.get n → 
+  0 < as.get n → 
   0 = term.val v (b,as) → 
   0 = term.val (v⟨n ↦ sgm v b as n⟩) (coeffs_reduce n b as) := 
 begin
@@ -102,10 +111,7 @@ begin
   let a_n := as.get n,
   let m := a_n + 1,
   have h3 : m ≠ 0 := 
-       begin 
-         apply ne_of_gt, apply lt_of_le_of_lt h1,
-         simp [a_n, m],
-       end,
+       begin apply ne_of_gt, apply lt_trans h1, simp [m] end,
   have h4 : 0 = (term.val (v⟨n↦sgm v b as n⟩) (coeffs_reduce n b as)) * m :=
   calc 0 
       = term.val v (b,as) : h2
@@ -203,7 +209,7 @@ def subst (n : nat) (t1 t2 : term) : term :=
 term.add (t1.mul (t2.snd.get n)) (t2.fst,t2.snd{n ↦ 0})
 
 lemma subst_correct {v t n b} {as : coeffs} :
-  0 ≤ as.get n → 0 = term.val v (b,as) → 
+  0 < as.get n → 0 = term.val v (b,as) → 
   term.val v t = term.val (v⟨n↦sgm v b as n⟩) (subst n (rhs n b as) t) :=
 begin
   intros h1 h2, simp_omega [subst],
@@ -256,7 +262,7 @@ def conc : list ee → clause → clause
   then conc es ((term.div i (b,as)::eqs), les)
   else ([],[])
 | (ee.reduce n::es) ((b,as)::eqs, les) :=
-  if 0 ≤ as.get n
+  if 0 < as.get n
   then let eq' := coeffs_reduce n b as in
        let r := rhs n b as in 
        let eqs' := eqs.map (subst n r) in
@@ -300,7 +306,7 @@ lemma sat_conc : ∀ {es} {c : clause}, c.sat → (conc es c).sat
     by_cases h2 : (¬i ∣ b ∧ ∀ (x : ℤ), x ∈ as → i ∣ x),
     { exfalso, cases h1 with v h1, 
       have h3 : 0 = b + coeffs.val v as := h1.left _ (or.inl rfl), 
-      have h4 : i ∣ coeffs.val v as     := sorry, --dvd_coeffs.val v 0 h2.right,
+      have h4 : i ∣ coeffs.val v as     := coeffs.dvd_val h2.right,
       have h5 : i ∣ b + coeffs.val v as := by { rw ← h3, apply dvd_zero },
       rw ← dvd_add_iff_left h4 at h5, apply h2.left h5 },
     { rw if_neg h2, apply sat_empty }
@@ -318,7 +324,7 @@ lemma sat_conc : ∀ {es} {c : clause}, c.sat → (conc es c).sat
   end
 | (ee.reduce n::es) ((b,as)::eqs, les) h1 := 
   begin
-    simp only [conc], by_cases h2 : 0 ≤ list.get n as,
+    simp only [conc], by_cases h2 : 0 < list.get n as,
     tactic.rotate 1, { rw if_neg h2, apply sat_empty },
     rw if_pos h2, apply sat_conc, cases h1 with v h1, 
     existsi v⟨n ↦ sgm v b as n⟩, cases h1 with h1 h3,

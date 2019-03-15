@@ -1,4 +1,4 @@
-import .coeffs
+import .coeffs .int
 
 --tactic.ring
 --.simp_omega
@@ -11,12 +11,6 @@ import .coeffs
 def term : Type := int × coeffs 
 
 namespace term
-
-def neg : term → term 
-| (b,as) := (-b, as.neg) 
-
-def div (i : int) : term → term 
-| (b,as) := (b/i, list.div₁ i as) 
 
 def subscript_digit : char → char 
 | '0' := '₀'
@@ -52,24 +46,21 @@ def subscript_digit : char → char
 @[omega] def val (v : nat → int) : term → int 
 | (b,as) := b + coeffs.val v as
 
+@[omega] def neg : term → term 
+| (b,as) := (-b, as.neg) 
+
 @[omega] def add : term → term → term 
 | (c1,cfs1) (c2,cfs2) := (c1+c2, list.add cfs1 cfs2) 
 
 @[omega] def sub : term → term → term 
 | (c1,cfs1) (c2,cfs2) := (c1 - c2, list.sub cfs1 cfs2) 
 
--- lemma sub_const {t1 t2 : term} :
---   (sub t1 t2).const = t1.const - t2.const := rfl
--- 
--- lemma sub_coeffs {t1 t2 : term} :
---   (sub t1 t2).coeffs = list.sub t1.coeffs t2.coeffs := rfl
+@[omega] def div (i : int) : term → term 
+| (b,as) := (b/i, as.map (λ x, x / i)) 
 
 lemma val_neg {v} {t : term} :
-(neg t).val v = - (t.val v) := sorry
-
-lemma val_div {v i} {b as} :
-i ∣ b → (∀ x ∈ as, i ∣ x) → 
-(div i (b,as)).val v = (val v (b,as)) / i := sorry
+(neg t).val v = -(t.val v) := 
+begin cases t with b as, simp_omega [neg_add] end
 
 @[omega] lemma val_sub {v} {t1 t2 : term} :
 (sub t1 t2).val v = t1.val v - t2.val v :=
@@ -91,8 +82,19 @@ def mul (i : int) : term → term
 @[omega] lemma val_mul {v i t} :
 val v (mul i t) = i * (val v t) := 
 begin 
-  cases t, simp_omega [mul, mul_add, add_mul,
+  cases t, 
+  simp_omega [mul, mul_add, add_mul,
   coeffs.val, list.length_map],
+end
+
+lemma val_div {v i} {b as} :
+i ∣ b → (∀ x ∈ as, i ∣ x) → 
+(div i (b,as)).val v = (val v (b,as)) / i := 
+begin
+  intros h1 h2, simp_omega, 
+  rw [int.add_div h1 (coeffs.dvd_val h2)],
+  apply fun_mono_2 rfl,
+  rw ← coeffs.val_map_div h2
 end
 
 def fresh_idx (t : term) : nat := t.snd.length

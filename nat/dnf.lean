@@ -1,32 +1,29 @@
-import .sub_elim ..polytope
+import .sub_elim ..clause 
 
 namespace nat
 
-@[omega] def dnf_core : form → list polytope 
+@[omega] def dnf_core : form → list clause 
 | (p ∨* q) := (dnf_core p) ++ (dnf_core q)
 | (p ∧* q) := 
-  (list.product (dnf_core p) (dnf_core q)).map (λ pq, pq.fst ++ pq.snd)
+  (list.product (dnf_core p) (dnf_core q)).map 
+  (λ pq, clause.append pq.fst pq.snd)
 | (t =* s) := 
-  [[term.sub (canonize s) (canonize t),
-    term.sub (canonize t) (canonize s)]]
-| (t ≤* s) := [[term.sub (canonize s) (canonize t)]]
+  [([term.sub (canonize s) (canonize t)],[])]
+| (t ≤* s) := [([],[term.sub (canonize s) (canonize t)])]
 | (¬* _)   := []
 
-lemma exists_polytope_holds_core {v} : 
+lemma exists_clause_holds_core {v} : 
   ∀ {p : form}, p.neg_free → p.sub_free → p.holds v → 
-  ∃ c ∈ (dnf_core p), polytope.holds (λ x, ↑(v x)) c := 
+  ∃ c ∈ (dnf_core p), clause.holds (λ x, ↑(v x)) c := 
 begin
   form.induce `[intros h1 h0 h2],
   { apply list.exists_mem_cons_of, 
-    simp only [polytope.holds], rw list.forall_mem_cons, constructor,
-    { cases h0 with ht hs,
-      simp_omega [val_canonize ht, val_canonize hs] at *, 
-      rw [h2, sub_self] },
-    { rw list.forall_mem_singleton, cases h0 with ht hs,
-      simp_omega [val_canonize ht, val_canonize hs] at *, 
-      rw [h2, sub_self] } }, --
+    constructor, rw list.forall_mem_singleton, 
+    cases h0 with ht hs, simp_omega [val_canonize ht, val_canonize hs] at *, 
+     rw [h2, sub_self], apply list.forall_mem_nil }, 
   { apply list.exists_mem_cons_of, 
-    simp only [polytope.holds], rw list.forall_mem_singleton,
+    constructor, apply list.forall_mem_nil,
+    rw list.forall_mem_singleton,
     simp_omega [val_canonize h0.left, val_canonize h0.right] at *, 
     rw [le_sub, sub_zero, int.coe_nat_le], assumption },
   { cases h1 },
@@ -42,8 +39,10 @@ begin
     simp_omega, rw list.mem_map, 
     constructor, constructor, 
     rw list.mem_product, constructor; assumption, refl,
-    simp only [polytope.holds, list.forall_mem_append],
-    apply and.intro hp2 hq2 }
+    cases cp with ts1 ts2, cases hp2 with hts1 hts2,
+    cases cq with ss1 ss2, cases hq2 with hss1 hss2,
+    constructor; rw list.forall_mem_append; 
+    constructor; assumption }
 end
 
 
@@ -51,16 +50,16 @@ def term.vars_core (is : list int) : list bool :=
 is.map (λ i, if i = 0 then ff else tt)
 
 def term.vars (t : term) : list bool := 
-term.vars_core t.coeffs
+term.vars_core t.snd
 
 def bools.or : list bool → list bool → list bool 
 | []        bs2       := bs2 
 | bs1       []        := bs1 
 | (b1::bs1) (b2::bs2) := (b1 || b2)::(bools.or bs1 bs2)
 
-def polytope.vars : polytope → list bool 
+def terms.vars : list term → list bool 
 | []      := [] 
-| (t::ts) := bools.or (term.vars t) (polytope.vars ts)
+| (t::ts) := bools.or (term.vars t) (terms.vars ts)
 
 def nonneg_consts_core : nat → list bool → list term 
 | _ [] := [] 
@@ -70,14 +69,17 @@ def nonneg_consts_core : nat → list bool → list term
 def nonneg_consts (bs : list bool) : list term :=
 nonneg_consts_core 0 bs
 
-def nonnegate (ts : polytope) : polytope := 
-nonneg_consts (polytope.vars ts) ++ ts
+def nonnegate : clause → clause | (eqs,les) := 
+let xs := terms.vars eqs in
+let ys := terms.vars les in
+let bs := bools.or xs ys in
+(eqs, nonneg_consts bs ++ les)
 
-def dnf (p : form) : list polytope := 
+def dnf (p : form) : list clause := 
 (dnf_core p).map nonnegate
 
 lemma holds_nonneg_consts_core {v : nat → int} (h1 : ∀ x, 0 ≤ v x) :
-  ∀ m bs, polytope.holds v (nonneg_consts_core m bs) 
+  ∀ m bs, (∀ t ∈ (nonneg_consts_core m bs), 0 ≤ term.val v t) 
 | _ []       := λ _ h2, by cases h2
 | k (ff::bs) := holds_nonneg_consts_core (k+1) bs
 | k (tt::bs) :=
@@ -88,39 +90,42 @@ lemma holds_nonneg_consts_core {v : nat → int} (h1 : ∀ x, 0 ≤ v x) :
   end
 
 lemma holds_nonneg_consts {v : nat → int} {bs} : 
-  (∀ x, 0 ≤ v x) → polytope.holds v (nonneg_consts bs) | h1 := 
+  (∀ x, 0 ≤ v x) → (∀ t ∈ (nonneg_consts bs), 0 ≤ term.val v t) 
+| h1 := 
 by apply holds_nonneg_consts_core h1
 
-lemma exists_polytope_holds {v} {p : form} : 
+lemma exists_clause_holds {v} {p : form} : 
   p.neg_free → p.sub_free → p.holds v → 
-  ∃ c ∈ (dnf p), polytope.holds (λ x, ↑(v x)) c := 
+  ∃ c ∈ (dnf p), clause.holds (λ x, ↑(v x)) c := 
 begin
   intros h1 h2 h3, 
-  rcases (exists_polytope_holds_core h1 h2 h3) with ⟨c,h4,h5⟩,
+  rcases (exists_clause_holds_core h1 h2 h3) with ⟨c,h4,h5⟩,
   existsi (nonnegate c),
   have h6 : nonnegate c ∈ dnf p, 
   { simp only [dnf], rw list.mem_map, 
-    refine ⟨c,h4,rfl⟩ }, refine ⟨h6,_⟩, 
-  simp only [nonnegate, polytope.holds],
+    refine ⟨c,h4,rfl⟩ }, 
+    refine ⟨h6,_⟩, cases c with eqs les,
+  simp only [nonnegate, clause.holds],
+  constructor, apply h5.left,
   rw list.forall_mem_append, 
-  apply and.intro (holds_nonneg_consts _) h5,
+  apply and.intro (holds_nonneg_consts _) h5.right,
   apply int.coe_nat_nonneg
 end
 
-lemma exists_polytope_sat {p : form} : 
+lemma exists_clause_sat {p : form} : 
   p.neg_free → p.sub_free →  
-  p.sat → ∃ c ∈ (dnf p), polytope.sat c := 
+  p.sat → ∃ c ∈ (dnf p), clause.sat c := 
 begin
   intros h1 h2 h3, cases h3 with v h3,
-  rcases (exists_polytope_holds h1 h2 h3) with ⟨c,h4,h5⟩,
+  rcases (exists_clause_holds h1 h2 h3) with ⟨c,h4,h5⟩,
   refine ⟨c,h4,_,h5⟩
 end
 
 lemma unsat_of_unsat_dnf (p : form) : 
-  p.neg_free → p.sub_free → polytopes.unsat (dnf p) → p.unsat := 
+  p.neg_free → p.sub_free → clauses.unsat (dnf p) → p.unsat := 
 begin
   intros hnf hsf h1 h2, apply h1, 
-  apply exists_polytope_sat hnf hsf h2
+  apply exists_clause_sat hnf hsf h2
 end
 
 end nat

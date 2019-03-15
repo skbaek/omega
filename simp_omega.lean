@@ -6,6 +6,7 @@ run_cmd mk_simp_attr `omega
 
 attribute [omega]
   list.map 
+  list.length_map 
   zero_mul
   mul_zero
   zero_add

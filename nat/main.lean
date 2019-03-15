@@ -26,15 +26,57 @@ begin
   apply form.sat_of_implies_of_sat implies_neg_elim h2,
 end
 
-axiom any (p : Prop) : p 
+--axiom any (p : Prop) : p 
+--
+--meta def expr_of_any (px : expr) : tactic expr := to_expr ``(any %%px)
 
-meta def expr_of_any (px : expr) : tactic expr := to_expr ``(any %%px)
+meta def preterm.expr_of_sub_free : preterm → tactic expr 
+| (& m)    := return `(trivial)
+| (m ** n) := return `(trivial)
+| (t +* s) := 
+  do x ← preterm.expr_of_sub_free t,
+     y ← preterm.expr_of_sub_free s,
+     return `(@and.intro (preterm.sub_free %%`(t)) 
+       (preterm.sub_free %%`(s)) %%x %%y) 
+| (_ -* _) := failed
 
-meta def expr_of_neg_free (p : form) : tactic expr := 
-expr_of_any `(form.neg_free %%`(p))
+meta def expr_of_neg_free : form → tactic expr 
+| (t =* s) := return `(trivial)
+| (t ≤* s) := return `(trivial)
+| (p ∨* q) := 
+  do x ← expr_of_neg_free p,
+     y ← expr_of_neg_free q,
+     return `(@and.intro (form.neg_free %%`(p)) 
+       (form.neg_free %%`(q)) %%x %%y) 
+| (p ∧* q) := 
+  do x ← expr_of_neg_free p,
+     y ← expr_of_neg_free q,
+     return `(@and.intro (form.neg_free %%`(p)) 
+       (form.neg_free %%`(q)) %%x %%y) 
+| _        := failed
 
-meta def expr_of_sub_free (p : form) : tactic expr := 
-expr_of_any `(form.sub_free %%`(p))
+meta def expr_of_sub_free : form → tactic expr 
+| (t =* s) := 
+  do x ← preterm.expr_of_sub_free t,
+     y ← preterm.expr_of_sub_free s,
+     return `(@and.intro (preterm.sub_free %%`(t)) 
+       (preterm.sub_free %%`(s)) %%x %%y) 
+| (t ≤* s) := 
+  do x ← preterm.expr_of_sub_free t,
+     y ← preterm.expr_of_sub_free s,
+     return `(@and.intro (preterm.sub_free %%`(t)) 
+       (preterm.sub_free %%`(s)) %%x %%y) 
+| (¬*p) := expr_of_sub_free p
+| (p ∨* q) := 
+  do x ← expr_of_sub_free p,
+     y ← expr_of_sub_free q,
+     return `(@and.intro (form.sub_free %%`(p)) 
+       (form.sub_free %%`(q)) %%x %%y) 
+| (p ∧* q) := 
+  do x ← expr_of_sub_free p,
+     y ← expr_of_sub_free q,
+     return `(@and.intro (form.sub_free %%`(p)) 
+       (form.sub_free %%`(q)) %%x %%y) 
 
 /- Given a p : form, return the expr of a term t : p.unsat,
    where p is subtraction- and negation-free. -/
@@ -56,8 +98,7 @@ end
 
 /- Given a p : form, return the expr of a term t : p.uniclo -/
 meta def expr_of_uniclo (p : form) : tactic expr := 
-do trace (neg_elim $ ¬* p),
-   x ← expr_of_unsat_nf (neg_elim (¬*p)), 
+do x ← expr_of_unsat_nf (neg_elim (¬*p)), 
    to_expr ``(uniclo_of_unsat_neg_elim_not %%`(p) %%x)
 
 meta def expr_of_lna : tactic expr :=
@@ -67,3 +108,4 @@ meta def omega : tactic unit :=
 rev >> desugar >> expr_of_lna >>= apply >> skip
 
 end nat
+

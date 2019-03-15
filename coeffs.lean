@@ -1,5 +1,5 @@
 import .simp_omega .list tactic.ring
-  .valuation .logic
+  .valuation .logic .int
 
 @[reducible] def coeffs : Type := list int
 
@@ -9,7 +9,14 @@ namespace coeffs
 | 0     := 0 
 | (o+1) := (val_btw o) + (as.get (l+o) * v (l+o))
 
+@[omega] lemma val_btw_nil {v l} : 
+  ∀ m, val_btw v [] l m = 0 
+| 0 := by simp_omega
+| (m+1) := by simp_omega [val_btw_nil m]
+
 def val (v as) : int := val_btw v as 0 as.length
+
+@[omega] lemma val_nil {v} : val v [] = 0 := rfl
 
 lemma val_btw_eq_of_le {as : coeffs} {v l} : 
   ∀ m, as.length ≤ l + m → 
@@ -35,38 +42,54 @@ begin
   rw zero_add, exact h1
 end
 
---@[omega] def val_under (as : coeffs) (v : nat → int) : nat → int 
---| 0     := 0 
---#exit
+lemma val_btw_eq_val_btw {v w : nat → int} {as bs : coeffs} {l} :
+  ∀ {m}, (∀ x, l ≤ x → x < l + m → v x = w x) → 
+    (∀ x, l ≤ x → x < l + m → as.get x = bs.get x) → 
+    val_btw v as l m = val_btw w bs l m 
+| 0 h1 h2 := rfl
+| (m+1) h1 h2 :=
+  begin
+    simp only [val_btw], 
+    have h3 : l + m < l + (m + 1), 
+    { rw ← add_assoc, apply lt_add_one },
+    apply fun_mono_2,
+    apply val_btw_eq_val_btw; intros x h4 h5,
+    { apply h1 _ h4 (lt_trans h5 h3) },
+    { apply h2 _ h4 (lt_trans h5 h3) },
+    rw [h1 _ _ h3, h2 _ _ h3];
+    apply nat.le_add_right
+  end
 
--- def val_btw_set {v a m} :
---   ∀ l h, 
---   ((0 ≤ m → m < h → val_under ([]{m ↦ a}) v n = a * v m) ∧   
---    (n ≤ m → val_under ([]{m ↦ a}) v n = 0))
--- | 0 := begin constructor; intro h1, cases h1, refl end  
--- | (n+1) := 
---   begin constructor; intro h1,
---     { rw [nat.lt_succ_iff, le_iff_eq_or_lt] at h1, cases h1, 
---       { simp_omega, rw [← h1, list.get_set,
---           (val_under_set m).right (le_refl _), zero_add] },
---       { simp_omega, rw [list.get_set_eq_of_ne (ne_of_lt h1)], 
---         simp_omega, apply (val_under_set n).left h1 } },
---     { simp_omega, rw list.get_set_eq_of_ne _, 
---       simp_omega, apply (val_under_set n).right, 
---       apply le_trans _ h1, apply nat.le_add_right,
---       apply ne.symm, apply ne_of_lt, 
---       rw ← nat.succ_le_iff, apply h1 }
---   end
--- 
--- @[omega] def val_set {v m a} : 
---   val ([]{m ↦ a}) v = a * v m := 
--- begin
---   simp only [val],
---   apply (val_under_set _ ).left, 
---   rw list.length_set, 
---   apply lt_of_lt_of_le _ (le_max_right _ _),
---   apply lt_add_one,
--- end
+def val_btw_set {v a l n} :
+  ∀ {m}, l ≤ n → n < l + m → val_btw v ([]{n ↦ a}) l m = a * v n 
+| 0 h1 h2 := 
+  begin exfalso, apply lt_irrefl l (lt_of_le_of_lt h1 h2) end
+| (m+1) h1 h2 :=
+  begin
+    rw [← add_assoc, nat.lt_succ_iff, le_iff_eq_or_lt] at h2, 
+    cases h2; simp_omega, 
+    { rw h2, simp,
+      have h3 : val_btw v ([]{l + m↦a}) l m = 0, 
+      { apply @eq.trans _ _ (val_btw v [] l m),
+        { apply val_btw_eq_val_btw, 
+          { intros, refl }, 
+          { intros x h4 h5, rw [list.get_nil, 
+            list.get_set_eq_of_ne, list.get_nil], 
+            apply ne_of_lt h5 } }, 
+        apply val_btw_nil },
+      rw [h3, list.get_set, zero_add] }, 
+    { rw [@val_btw_set m h1 h2, list.get_set_eq_of_ne],
+      simp_omega, apply ne_of_gt, apply h2 }
+  end
+
+@[omega] def val_set {v m a} : 
+  val v ([]{m ↦ a}) = a * v m := 
+begin
+  apply val_btw_set, apply zero_le,
+  simp_omega [list.length_set],
+  apply lt_of_lt_of_le (lt_add_one _),
+  apply le_max_right 
+end
 
 lemma val_btw_neg {as v l} : 
   ∀ {o}, val_btw v (list.neg as) l o = -(val_btw v as l o)
@@ -121,23 +144,6 @@ end
 def val_except (n v as) := 
 val_btw v as 0 n + val_btw v as (n+1) (as.length - (n+1))
 
-lemma val_btw_eq_val_btw {v w : nat → int} {as bs : coeffs} {l} :
-  ∀ {m}, (∀ x, l ≤ x → x < l + m → v x = w x) → 
-    (∀ x, l ≤ x → x < l + m → as.get x = bs.get x) → 
-    val_btw v as l m = val_btw w bs l m 
-| 0 h1 h2 := rfl
-| (m+1) h1 h2 :=
-  begin
-    simp only [val_btw], 
-    have h3 : l + m < l + (m + 1), 
-    { rw ← add_assoc, apply lt_add_one },
-    apply fun_mono_2,
-    apply val_btw_eq_val_btw; intros x h4 h5,
-    { apply h1 _ h4 (lt_trans h5 h3) },
-    { apply h2 _ h4 (lt_trans h5 h3) },
-    rw [h1 _ _ h3, h2 _ _ h3];
-    apply nat.le_add_right
-  end
 
 lemma val_except_eq_val_except 
   {k : nat} {is js : coeffs} {v w : nat → int} :
@@ -193,8 +199,99 @@ begin
     apply le_trans h1, apply nat.le_add_right }
 end
 
-@[omega] lemma val_btw_map_mul {v i as l m} :
-  val_btw v (list.map ((*) i) as) l m = i * val_btw v as l m := sorry
+@[omega] lemma val_btw_map_mul {v i as l} :
+  ∀ {m}, val_btw v (list.map ((*) i) as) l m = i * val_btw v as l m 
+| 0     := by simp_omega
+| (m+1) :=
+  begin
+    simp_omega [@val_btw_map_mul m, mul_add],
+    apply fun_mono_2 rfl, 
+    by_cases h1 : l + m < as.length,
+    { rw [list.get_map h1, mul_assoc] },
+    { rw not_lt at h1,
+      rw [list.get_eq_zero_of_le, 
+          list.get_eq_zero_of_le];
+      try {simp_omega}; apply h1 }
+  end
+
+lemma forall_val_dvd_of_forall_mem_dvd {i} {as : coeffs} :
+  (∀ x ∈ as, i ∣ x) → (∀ n, i ∣ as.get n) | h1 n := 
+begin apply list.forall_val_of_forall_mem (dvd_zero _) h1 end
+
+lemma dvd_val_btw {i v as l} :
+  ∀ {m}, (∀ x ∈ as, i ∣ x) → (i ∣ val_btw v as l m)
+| 0 h1 := dvd_zero _
+| (m+1) h1 :=
+  begin
+    simp_omega, apply dvd_add,
+    apply dvd_val_btw h1,
+    apply dvd_mul_of_dvd_left,
+    by_cases h2 : as.get (l+m) = 0,
+    { rw h2, apply dvd_zero },
+    { apply h1, apply list.mem_get_of_ne_zero h2 }
+  end
+
+lemma dvd_val {i v as} :
+  (∀ x ∈ as, i ∣ x) → (i ∣ val v as) := by apply dvd_val_btw
+
+@[omega] lemma val_btw_map_div {v i as l} (h1 : ∀ x ∈ as, i ∣ x) :
+  ∀ {m}, val_btw v (list.map (λ x, x / i) as) l m = (val_btw v as l m) / i 
+| 0     := by simp_omega [int.zero_div]
+| (m+1) :=
+  begin
+    simp_omega [@val_btw_map_div m],
+    rw [int.add_div (dvd_val_btw h1)], 
+    apply fun_mono_2 rfl,
+
+    apply calc list.get (l + m) (list.map (λ (x : ℤ), x / i) as) * v (l + m) 
+        = ((as.get (l + m)) / i) * v (l + m) : 
+          begin
+            apply fun_mono_2 _ rfl, 
+            rw list.get_map', apply int.zero_div 
+          end
+    ... =  list.get (l + m) as * v (l + m) / i :
+          begin
+            repeat {rw mul_comm _ (v (l+m))}, 
+            rw int.mul_div_assoc, 
+            apply forall_val_dvd_of_forall_mem_dvd h1
+          end,
+    apply dvd_mul_of_dvd_left,
+    apply forall_val_dvd_of_forall_mem_dvd h1,
+  end
+
+@[omega] lemma val_map_div {v i as} :
+  (∀ x ∈ as, i ∣ x) → 
+  val v (list.map (λ x, x / i) as) = (val v as) / i := 
+begin 
+  intro h1, simp only [val, list.length_map], 
+  apply val_btw_map_div h1 
+end
+
+lemma val_btw_eq_zero {v as l} : 
+  ∀ {m}, (∀ x : int, x ∈ as → x = 0) → val_btw v as l m = 0 
+| 0 h1 := rfl
+| (m+1) h1 :=
+  begin
+    have h2 := list.forall_val_of_forall_mem _ h1, 
+    simp_omega [h2 (l+m)], apply @val_btw_eq_zero m h1, refl,
+  end
+
+lemma val_eq_zero {v is} : 
+  (∀ x : int, x ∈ is → x = 0) → val v is = 0 :=
+by apply val_btw_eq_zero
+
+#exit
+| [] _ h := begin simp_omega, apply dvd_zero, end
+| (i::is) n h := 
+  begin
+    simp_omega, apply dvd_add,
+    apply dvd_mul_of_dvd_left (h _ (or.inl rfl)),
+    apply dvd_val_btw _ (list.forall_mem_of_forall_mem_cons h) 
+  end
+
+#exit
+lemma dvd_val {is j v} : (∀ x ∈ is, j ∣ x) → (j ∣ val v is) := 
+by apply dvd_val_btw
 
   #exit
 @[omega] lemma val_mul₁ {v i is} :
@@ -223,31 +320,6 @@ lemma val_btw_mul₁ {v i} :
 | m (j::is) := begin simp_omega, rw val_btw_mul₁, ring end 
 
 
-lemma dvd_val_btw {j} (v) :
-  ∀ {is} n, (∀ x ∈ is, j ∣ x) → (j ∣ val_btw v n is)
-| [] _ h := begin simp_omega, apply dvd_zero, end
-| (i::is) n h := 
-  begin
-    simp_omega, apply dvd_add,
-    apply dvd_mul_of_dvd_left (h _ (or.inl rfl)),
-    apply dvd_val_btw _ (list.forall_mem_of_forall_mem_cons h) 
-  end
-
-lemma dvd_val {is j v} : (∀ x ∈ is, j ∣ x) → (j ∣ val v is) := 
-by apply dvd_val_btw
-
-lemma val_btw_eq_zero {v} : 
-  ∀ {is m}, (∀ x : int, x ∈ is → x = 0) → val_btw v m is = 0 
-| []      m _  := rfl
-| (i::is) m h1 :=
-  begin
-    simp_omega, rw [h1 _ (or.inl rfl), val_btw_eq_zero 
-      (list.forall_mem_of_forall_mem_cons h1)], simp
-  end
-
-lemma val_eq_zero {v is} : 
-  (∀ x : int, x ∈ is → x = 0) → val v is = 0 :=
-by apply val_btw_eq_zero
 
 lemma val_btw_eq_val_btw_of_eq_upto (v w) :
   ∀ k (is : list int), eq_upto (k + is.length) v w → 
