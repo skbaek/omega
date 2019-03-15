@@ -41,9 +41,13 @@ namespace form
 | (p ∨* q) := p.holds ∨ q.holds
 | (p ∧* q) := p.holds ∧ q.holds
 
-@[omega] def uniclo_core (p : form) : nat → (nat → int) → Prop 
-| 0     v := p.holds v
-| (k+1) v := ∀ i : int, uniclo_core k (i::v) 
+end form
+
+@[omega] def uniclo (p : form) : (nat → int) → nat → Prop 
+| v 0     := p.holds v
+| v (k+1) := ∀ i : int, uniclo (i::v) k 
+
+namespace form
 
 def fresh_idx : form → nat 
 | (t =* s) := max t.fresh_idx s.fresh_idx
@@ -52,8 +56,8 @@ def fresh_idx : form → nat
 | (p ∨* q) := max p.fresh_idx q.fresh_idx
 | (p ∧* q) := max p.fresh_idx q.fresh_idx
 
-def uniclo (p : form) : Prop := 
-uniclo_core p p.fresh_idx (λ _, 0)
+--def uniclo (p : form) : Prop := 
+--uniclo_core p p.fresh_idx (λ _, 0)
 
 def valid (p : form) : Prop := 
 ∀ v, holds v p
@@ -95,13 +99,13 @@ meta instance has_to_format : has_to_format form := ⟨λ x, x.repr⟩
 
 end form
 
-lemma uniclo_core_of_valid {p : form} : 
-  ∀ {m v}, p.valid → p.uniclo_core m v
+lemma uniclo_of_valid {p : form} : 
+  ∀ {m v}, p.valid → uniclo p v m 
 | 0 v h1     := h1 _ 
-| (m+1) v h1 := λ i, uniclo_core_of_valid h1
+| (m+1) v h1 := λ i, uniclo_of_valid h1
 
-lemma uniclo_of_valid {p : form} (h : p.valid) : p.uniclo := 
-uniclo_core_of_valid h 
+--lemma uniclo_of_valid {p : form} (h : p.valid) : p.uniclo := 
+--uniclo_core_of_valid h 
 
 lemma valid_of_unsat_not {p : form} : (¬*p).unsat → p.valid := 
 begin

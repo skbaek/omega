@@ -1,4 +1,4 @@
-import .int .clause .valuation
+import .int .clause 
 
 def sgm (v : nat → int) (b : int) (as : list int) (n) := 
 let a_n : int := as.get n in
@@ -239,7 +239,7 @@ def repr : ee → string
 | (factor i) := "/" ++ i.repr
 | neg    := "-"
 | (reduce n) := "≻" ++ n.repr
-| (cancel n) := "∓" ++ n.repr 
+| (cancel n) := "+" ++ n.repr 
 
 instance has_repr : has_repr ee := ⟨repr⟩ 
 

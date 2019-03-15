@@ -1,13 +1,5 @@
 import .coeffs .int
 
---tactic.ring
---.simp_omega
---.int
---.logic
---.valuation
---
--- open list
-
 def term : Type := int × coeffs 
 
 namespace term

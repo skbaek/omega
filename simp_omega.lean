@@ -1,7 +1,6 @@
 import logic.basic data.list.basic
 
-variables {α : Type}
-variables {p q : Prop}
+variables {α : Type} {p q : Prop}
 run_cmd mk_simp_attr `omega 
 
 attribute [omega]

@@ -22,19 +22,4 @@ begin
     rw [max_eq_left h2, max_eq_left (succ_le_succ h2)] }
 end
 
-#exit
-| 0 n := 
-  begin
-    rw [max_eq_right, max_eq_right];
-    simp only [zero_le, succ_le_succ_iff]
-  end
-| m 0 := 
-  begin
-    rw [max_eq_left, max_eq_left];
-    simp only [zero_le, succ_le_succ_iff]
-  end
-| (succ m) (succ n) :=
-  begin
-  end
-
 end nat

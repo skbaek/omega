@@ -2,6 +2,9 @@ import .tactic
 
 open tactic
 
+meta def is_hyp (x : expr) : tactic bool :=
+infer_type x >>= is_prop
+
 meta def is_int (x : expr) : tactic bool :=
 if x = `(int) then return tt
 else if x = `(nat) then return ff

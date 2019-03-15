@@ -68,5 +68,4 @@ begin
   rw h2 at h1; [left, right]; assumption
 end
 
-
 end option

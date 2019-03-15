@@ -18,17 +18,13 @@ attribute [sugar_nat]
 
 meta def desugar := `[try {simp only with sugar_nat}]
 
-lemma uniclo_of_unsat_neg_elim_not (p : form) :
-  (neg_elim (¬* p)).unsat → p.uniclo :=  
+lemma uniclo_of_unsat_neg_elim_not (m) (p : form) :
+  (neg_elim (¬* p)).unsat → uniclo p (λ _, 0) m :=  
 begin
   intro h1, apply uniclo_of_valid,
   apply valid_of_unsat_not, intro h2, apply h1,
   apply form.sat_of_implies_of_sat implies_neg_elim h2,
 end
-
---axiom any (p : Prop) : p 
---
---meta def expr_of_any (px : expr) : tactic expr := to_expr ``(any %%px)
 
 meta def preterm.expr_of_sub_free : preterm → tactic expr 
 | (& m)    := return `(trivial)
@@ -96,13 +92,15 @@ match p.sub_terms with
      return `(unsat_of_unsat_sub_elim %%`(t) %%`(s) %%`(p) %%x)
 end
 
-/- Given a p : form, return the expr of a term t : p.uniclo -/
-meta def expr_of_uniclo (p : form) : tactic expr := 
+/- Given a (m : nat) and (p : form), 
+   return the expr of (t : uniclo m p) -/
+meta def expr_of_uniclo (m : nat) (p : form) : tactic expr := 
 do x ← expr_of_unsat_nf (neg_elim (¬*p)), 
-   to_expr ``(uniclo_of_unsat_neg_elim_not %%`(p) %%x)
+   to_expr ``(uniclo_of_unsat_neg_elim_not %%`(m) %%`(p) %%x)
 
 meta def expr_of_lna : tactic expr :=
-target >>= to_form >>= expr_of_uniclo 
+do (p,m) ← target >>= to_form 0,
+   expr_of_uniclo m p 
 
 meta def omega : tactic unit :=
 rev >> desugar >> expr_of_lna >>= apply >> skip

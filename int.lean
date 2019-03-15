@@ -1,7 +1,5 @@
 import .list data.int.basic .logic
 
-data.int.gcd
-
 namespace int
 
 lemma add_div {a b c : int} : 
@@ -72,10 +70,3 @@ end
 lemma symmod_eq {i j} :
   symmod i j = i - j * (symdiv i j) := 
 by rw [mul_symdiv_eq, sub_sub_cancel]
-
-#exit
-lemma zero_symmod {i} : symmod 0 i = 0 := 
-begin
-  simp only [symmod], 
-  --apply @ite.rec _ _ _ (0 % i) (0 % i - i)  (λ x, x = 0) _ _,
-end
