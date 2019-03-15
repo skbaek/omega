@@ -1,4 +1,4 @@
-import .form ..polytope
+import .form ..clause
 
 namespace int
 
@@ -64,16 +64,16 @@ begin
   { apply and_iff_and (ihp v) (ihq v) }
 end
 
-@[omega] def nf : form → form 
+@[omega] def neg_elim : form → form 
 | (¬* (t =* s)) := (t.succ ≤* s) ∨* (s.succ ≤* t)
 | (¬* (t ≤* s)) := s.succ ≤* t
-| (p ∨* q) := (nf p) ∨* (nf q)
-| (p ∧* q) := (nf p) ∧* (nf q)
+| (p ∨* q) := (neg_elim p) ∨* (neg_elim q)
+| (p ∧* q) := (neg_elim p) ∧* (neg_elim q)
 | p        := p
 
-lemma neg_free_nf : ∀ p, is_nnf p → neg_free (nf p) := 
+lemma neg_free_neg_elim : ∀ p, is_nnf p → neg_free (neg_elim p) := 
 begin
-  form.induce `[intro h1, try {simp only [neg_free, nf]}, try {trivial}],
+  form.induce `[intro h1, try {simp only [neg_free, neg_elim]}, try {trivial}],
   { cases p; try {cases h1}; try {trivial},
     constructor; trivial },
   { cases h1, constructor; [{apply ihp}, {apply ihq}]; assumption },
@@ -88,7 +88,7 @@ begin
   { constructor; apply le_of_eq; rw h1  }
 end
 
-lemma implies_nf : ∀ {p : form}, form.implies p (nf p) :=
+lemma implies_neg_elim : ∀ {p : form}, form.implies p (neg_elim p) :=
 begin
   form.induce `[intros v h, try {apply h}],
   { cases p with t s t s; try {apply h},
@@ -96,11 +96,70 @@ begin
         classical.not_and_distrib, not_le] at h,
       simp_omega [int.add_one_le_iff], rw or.comm, assumption },
     { simp_omega [not_le, int.add_one_le_iff] at *, assumption} },
-  { simp only [nf], cases h; [{left, apply ihp}, 
+  { simp only [neg_elim], cases h; [{left, apply ihp}, 
     {right, apply ihq}]; assumption }, 
   { apply and_of_and (ihp _) (ihq _) h }
 end
 
+@[omega] def dnf_core : form → list clause 
+| (p ∨* q) := (dnf_core p) ++ (dnf_core q)
+| (p ∧* q) := 
+  (list.product (dnf_core p) (dnf_core q)).map 
+  (λ pq, clause.append pq.fst pq.snd)
+| (t =* s) := [([term.sub (canonize s) (canonize t)],[])]
+| (t ≤* s) := [([],[term.sub (canonize s) (canonize t)])]
+| (¬* _)   := []
+
+def dnf (p : form) : list clause := 
+dnf_core $ neg_elim $ nnf p
+
+lemma exists_clause_holds {v} : 
+  ∀ {p : form}, neg_free p → p.holds v → ∃ c ∈ (dnf_core p), clause.holds v c := 
+begin
+  form.induce `[intros h1 h2],
+  { apply list.exists_mem_cons_of, constructor, 
+    { simp_omega at h2, rw [list.forall_mem_singleton], simp_omega [h2] },
+    { apply list.forall_mem_nil } },
+  { apply list.exists_mem_cons_of, constructor, 
+    { apply list.forall_mem_nil },
+    { simp_omega at h2, rw [list.forall_mem_singleton], 
+      simp_omega, rw [le_sub, sub_zero], assumption } },
+    { cases h1 },
+    { cases h2 with h2 h2;
+      [ {cases (ihp h1.left h2) with c h3},
+        {cases (ihq h1.right h2) with c h3}];
+      cases h3 with h3 h4; 
+      refine ⟨c, list.mem_append.elim_right _, h4⟩;
+      [left,right]; assumption }, 
+    { rcases (ihp h1.left h2.left) with ⟨cp, hp1, hp2⟩,  
+      rcases (ihq h1.right h2.right) with ⟨cq, hq1, hq2⟩, 
+      constructor, constructor,
+      simp_omega, rw list.mem_map, 
+      constructor, constructor, 
+      rw list.mem_product, constructor; assumption, refl,
+      apply clause.holds_append; assumption }
+end
+
+lemma clauses_sat_dnf_core {p : form} : 
+  neg_free p → p.sat → clauses.sat (dnf_core p) := 
+begin
+  intros h1 h2, cases h2 with v h2,
+  rcases (exists_clause_holds h1 h2) with ⟨c,h3,h4⟩,
+  refine ⟨c,h3,v,h4⟩
+end
+
+lemma unsat_of_clauses_unsat {p : form} : 
+clauses.unsat (dnf p) → p.unsat := 
+begin
+  intros h1 h2, apply h1,
+  apply clauses_sat_dnf_core,
+  apply neg_free_neg_elim _ (is_nnf_nnf _),
+  apply form.sat_of_implies_of_sat implies_neg_elim,
+  have hrw := exists_iff_exists (@nnf_equiv p),
+  apply hrw.elim_right h2
+end
+
+#exit
 @[omega] def dnf_core : form → list polytope 
 | (p ∨* q) := (dnf_core p) ++ (dnf_core q)
 | (p ∧* q) := 

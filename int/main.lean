@@ -18,20 +18,19 @@ attribute [sugar]
 
 meta def desugar := `[try {simp only with sugar}]
 
-lemma uniclo_of_unsat_clausify {p : form} :
-  polytopes.unsat (dnf (¬*p)) → p.uniclo := 
+lemma uniclo_of_unsat_clausify (p : form) :
+  clauses.unsat (dnf (¬*p)) → p.uniclo | h1 := 
 begin
-  intro h1, 
   apply uniclo_of_valid,
   apply valid_of_unsat_not,
-  apply unsat_of_unsat_dnf,
-  assumption,
+  apply unsat_of_clauses_unsat,
+  exact h1 
 end
 
 /- Given a p : form, return the expr of a term t : p.uniclo -/
-meta def expr_of_uniclo (p : form) : tactic expr := 
+meta def expr_of_uniclo (p : form) : tactic expr :=  
 do x ← expr_of_unsats (dnf (¬*p)), 
-   to_expr ``(@uniclo_of_unsat_clausify %%`(p) %%x)
+   return `(uniclo_of_unsat_clausify %%`(p) %%x)
 
 meta def expr_of_lia : tactic expr :=
 target >>= to_form >>= expr_of_uniclo 

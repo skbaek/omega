@@ -1,8 +1,8 @@
 import .list data.int.basic
 
--- def ints.gcd : list int → nat
--- | []      := 0
--- | (i::is) := nat.gcd i.nat_abs (ints.gcd is)
+def ints.gcd : list int → nat
+| []      := 0
+| (i::is) := nat.gcd i.nat_abs (ints.gcd is)
 
 lemma forall_mem_nil_eq_zero : ∀ x : int, x ∈ ([] : list int) → x = (0 : int) :=
 begin intros x h1, cases h1 end
@@ -17,3 +17,16 @@ begin
 end
 
 meta instance int.has_reflect : has_reflect int := by tactic.mk_has_reflect_instance
+
+def symdiv (i j : int) : int := 
+if (2 * (i % j)) < j
+then i / j
+else (i / j) + 1
+
+def symmod (i j : int) : int := 
+if (2 * (i % j)) < j
+then i % j
+else (i % j) - j
+
+
+#check @dvd_add_iff_left int _

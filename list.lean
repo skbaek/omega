@@ -1,13 +1,58 @@
+import data.list.basic .nat
+
 import .simp_omega 
 
 variables {α β : Type}
 
 namespace list
 
+@[omega] def get [has_zero α] : nat → list α → α  
+| _ [] := (0 : α)
+| 0 (i::is) := i 
+| (n+1) (i::is) := get n is 
+
+@[omega] lemma get_nil [has_zero α] {k} : get k [] = (0 : α) := 
+begin cases k; refl end
+
+lemma get_eq_zero_of_le [has_zero α] : 
+  ∀ k {as : list α}, as.length ≤ k → get k as = (0 : α) 
+| 0 [] h1 := rfl
+| 0 (a::as) h1 := by cases h1
+| (k+1) [] h1 := rfl
+| (k+1) (a::as) h1 := 
+  begin
+    simp_omega, apply get_eq_zero_of_le k,
+    rw ← nat.succ_le_succ_iff, apply h1,
+  end
+
 @[omega] def add [has_add α] : list α → list α → list α 
-| (a1::as1) (a2::as2) := ((a1+a2)::(add as1 as2))
-| [] as2 := as2
 | as1 [] := as1
+| [] as2 := as2
+| (a1::as1) (a2::as2) := ((a1+a2)::(add as1 as2))
+
+@[omega] lemma nil_add [has_add α] (as : list α) :
+add [] as = as := by cases as; refl
+
+@[omega] lemma add_nil [has_add α] (as : list α) :
+add as [] = as := by cases as; refl
+
+@[omega] lemma get_add [add_monoid α] : 
+  ∀ {k} {is js : list α}, 
+  (add is js).get k = (is.get k + js.get k) 
+| 0     is      []      := by simp_omega
+| 0     []      js      := by simp_omega
+| 0     (i::is) (j::js) := by simp_omega
+| (k+1) []      js      := by simp_omega
+| (k+1) is      []      := by simp_omega
+| (k+1) (i::is) (j::js) := by simp_omega [get_add]
+
+lemma length_add [has_add α] : 
+  ∀ {is js : list α}, (add is js).length = max is.length js.length 
+| [] js := begin simp_omega, rw max_eq_right, apply zero_le end
+| is [] := begin simp_omega, rw max_eq_left, apply zero_le end
+| (i::is) (j::js) :=
+  by simp_omega [list.length,
+     nat.max_succ_succ, length_add]
 
 @[omega] def mul₁ [has_mul α] (a) : list α → list α 
 | []      := [] 
@@ -19,10 +64,6 @@ infix `*₁` : 250 := mul₁
 | []      := [] 
 | (a::as) := (a/d)::(div₁ as)
 
-def max [inhabited α] [decidable_linear_order α] : list α → α 
-| []           := @inhabited.default α _
-| [a]          := a
-| (a1::a2::as) := _root_.max a1 (max (a2::as))
 
 @[omega] def set [has_zero α] (i) : list α → ℕ → list α
 | (j::is) 0     := i::is
@@ -31,9 +72,40 @@ def max [inhabited α] [decidable_linear_order α] : list α → α
 | []      (k+1) := 0::(set ([] : list α) k)
 notation as `{` m `↦` a `}` := set a as m 
 
+lemma length_set [has_zero α] {a : α} :
+  ∀ {m as}, (as{m ↦ a}).length = _root_.max as.length (m+1) 
+| 0 [] := rfl
+| 0 (a::as) := 
+  begin
+    rw max_eq_left, refl, 
+    simp [nat.le_add_right],
+  end
+| (m+1) [] := 
+  begin
+    rw max_eq_right, simp_omega [list.length],
+    rw @length_set m, rw max_eq_right, 
+    repeat {apply zero_le}
+  end
+| (m+1) (a::as) := 
+  begin
+    simp_omega [list.length, nat.max_succ_succ], 
+    rw @length_set m, 
+  end
+
 @[omega] def neg [has_neg α] : list α → list α 
-| []      := [] --list.map (λ x, -x) as
+| []      := [] 
 | (a::as) := -a::(neg as)
+
+@[omega] lemma get_neg [add_group α] : 
+  ∀ {k} {as : list α}, as.neg.get k = -(as.get k) 
+| _ []          := by simp_omega
+| 0 (a::as)     := by simp_omega
+| (k+1) (a::as) := begin simp_omega [get_neg] end
+
+@[omega] lemma length_neg [has_neg α] : 
+  ∀ as : list α, (as).neg.length = as.length 
+| []      := rfl 
+| (a::as) := by simp_omega [list.length, length_neg] 
 
 @[omega] def sub [has_neg α] [has_sub α] : list α → list α → list α 
 | [] []        := []
@@ -41,10 +113,35 @@ notation as `{` m `↦` a `}` := set a as m
 | (a1::as1) [] := a1::as1
 | (a1::as1) (a2::as2) := (a1-a2)::(sub as1 as2) 
 
-@[omega] def get [has_zero α] : nat → list α → α  
-| _ [] := (0 : α)
-| 0 (i::is) := i 
-| (n+1) (i::is) := get n is 
+@[omega] lemma sub_nil [has_neg α] [has_sub α] (as : list α) :
+sub as [] = as := by cases as; refl
+
+@[omega] lemma nil_sub [has_neg α] [has_sub α] (as : list α) :
+sub [] as = as.neg := by cases as; refl
+
+@[omega] lemma get_sub [add_group α] : --[has_zero α] [has_neg α] [has_sub α] : 
+  ∀ {k} {is js : list α}, 
+  (sub is js).get k = (is.get k - js.get k) 
+| 0     is      []      := by simp_omega
+| 0     []      js      := by simp_omega
+| 0     (i::is) (j::js) := by simp_omega
+| (k+1) []      js      := by simp_omega 
+| (k+1) is      []      := by simp_omega 
+| (k+1) (i::is) (j::js) := by simp_omega [get_sub]
+
+lemma length_sub [has_neg α] [has_sub α] : 
+  ∀ {is js : list α}, (sub is js).length = max is.length js.length 
+| [] js := begin simp_omega, rw max_eq_right, apply zero_le end
+| is [] := begin simp_omega, rw max_eq_left, apply zero_le end
+| (i::is) (j::js) :=
+  by simp_omega [list.length,
+     nat.max_succ_succ, length_sub]
+
+
+def max [inhabited α] [decidable_linear_order α] : list α → α 
+| []           := @inhabited.default α _
+| [a]          := a
+| (a1::a2::as) := _root_.max a1 (max (a2::as))
 
 def map_with_idx_core (f : nat → α → β) : nat → list α → list β  
 | k []      := []
@@ -82,6 +179,50 @@ begin
   rw subset_def at h1, apply h1 h3
 end
 
+lemma get_set [has_zero α] {a : α} : 
+  ∀ {k} {as}, as{k ↦ a}.get k = a
+| 0 as := begin cases as; refl end
+| (k+1) as :=
+  begin cases as; {simp_omega, apply get_set} end
+
+lemma eq_get_of_mem [has_zero α] {a} : 
+  ∀ {as : list α}, a ∈ as → ∃ n, a = (as.get n)
+| [] h := by cases h
+| (b::as) h :=
+  begin
+    rw mem_cons_iff at h, cases h,
+    { existsi 0, apply h },
+    { cases eq_get_of_mem h with n h2,
+      existsi (n+1), apply h2 }
+  end
+
+def equiv [has_zero α] (l1 l2 : list α) : Prop :=
+∀ m, l1.get m = l2.get m
+
+lemma get_set_eq_of_ne [has_zero α] {a : α} : 
+  ∀ {as : list α} {k} m, m ≠ k → as{k ↦ a}.get m = as.get m 
+| as 0 m h1 := 
+  begin
+    cases m, contradiction, cases as, simp_omega, refl
+  end
+| as (k+1) m h1 := 
+  begin
+    cases as; cases m; simp_omega, 
+    { rw get_set_eq_of_ne, simp_omega,
+      intro hc, apply h1, simp [hc] },
+    { apply get_set_eq_of_ne, intro hc,
+      apply h1, simp [hc], }
+  end
+
+
+lemma map_add_map [has_add α] {as : list α} (f g : α → α) :
+  as.map (λ x, f x + g x) = add (as.map f) (as.map g) := sorry
+
+lemma get_map [has_zero α] [has_zero β] {f : α → β} {as : list α} {n} :
+(as.map f).get n = f (as.get n) := sorry
+
+
+#check map_map
 
 #exit
 instance decidable_forall_mem' (p : α → Prop) [h0 : decidable_pred p] :
@@ -149,26 +290,6 @@ lemma sum_eq_zero_of_equiv_nil [add_monoid α] :
   end
 
 
-lemma get_set_eq_of_eq [has_zero α] {a : α} : 
-  ∀ {k} {as}, as{k ↦ a}[k] = a
-| 0 as := begin cases as; refl end
-| (k+1) as :=
-  begin cases as; {simp_omega, apply get_set_eq_of_eq} end
-
-lemma get_set_eq_of_ne [has_zero α] {a : α} : 
-  ∀ {k m} {as : list α}, k ≠ m → as{k ↦ a}[m] = as[m] 
-| 0 m as h1 := 
-  begin
-    cases m, contradiction, cases as, simp_omega, refl
-  end
-| (k+1) m as h1 := 
-  begin
-    cases as; cases m; simp_omega, 
-    { rw get_set_eq_of_ne, simp_omega,
-      intro hc, apply h1, simp [hc] },
-    { apply get_set_eq_of_ne, intro hc,
-      apply h1, simp [hc], }
-  end
 
 lemma get_set [has_zero α] {k m} {b : α} {as} : 
   as{k ↦ b}[m] = if k = m then b else as[m] :=
@@ -193,8 +314,8 @@ end
 @[omega] lemma neg_cons [has_neg α] (a : α) (as) : 
   -(a::as) = -a::(-as) := rfl
 
-lemma length_neg [has_neg α] (as : list α) : 
-  (-as).length = as.length := length_map _ _
+
+
 
 
 @[omega] lemma nil_add [has_add α] (as : list α) : [] + as = as := 

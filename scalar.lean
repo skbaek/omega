@@ -1,4 +1,4 @@
-import .polytope 
+import .clause 
 
 open tactic
 
@@ -8,17 +8,17 @@ meta def trisect (m : nat) :
 | [] := ([],[],[])
 | ((p,t)::pts) := 
   let (neg,zero,pos) := trisect pts in 
-  if t.coeffs.get m < 0 
+  if t.snd.get m < 0 
   then ((p,t)::neg,zero,pos)
-  else if t.coeffs.get m = 0 
+  else if t.snd.get m = 0 
        then (neg,(p,t)::zero,pos)
        else (neg,zero,(p,t)::pos)
 
 meta def elim_var_aux (m : nat) : 
   ((list nat × term) × (list nat × term)) → tactic (list nat × term) 
 | ((p1,t1), (p2,t2)) := 
-  let n := int.nat_abs (t1.coeffs.get m) in
-  let o := int.nat_abs (t2.coeffs.get m) in
+  let n := int.nat_abs (t1.snd.get m) in
+  let o := int.nat_abs (t2.snd.get m) in
   let lcm := (nat.lcm n o) in
   let n' := lcm / n in
   let o' := lcm / o in
@@ -43,7 +43,7 @@ meta def search_core : nat → list (list nat × term) → tactic (list nat)
 
 meta def search (ts : list term) : tactic (list nat) :=
 search_core 
-  (ts.map (λ t : term, t.coeffs.length)).max  
+  (ts.map (λ t : term, t.snd.length)).max  
   (ts.map_with_idx (λ m t, ([]{m ↦ 1}, t)))
 
 @[omega] def comb : list term → list nat → term 
@@ -67,37 +67,28 @@ lemma comb_holds {v} :
       apply list.forall_mem_of_forall_mem_cons h }
   end
 
-def unsat_comb' (ts ns) : Prop :=
-(comb ts ns).const < 0 ∧ ∀ x ∈ (comb ts ns).coeffs, x = (0 : int)
+def unsat_comb (ts ns) : Prop :=
+(comb ts ns).fst < 0 ∧ ∀ x ∈ (comb ts ns).snd, x = (0 : int)
 
-lemma unsat_comb'_of (ts ns) : 
-(comb ts ns).const < 0 → 
-(∀ x ∈ (comb ts ns).coeffs, x = (0 : int)) → 
-unsat_comb' ts ns := 
+lemma unsat_comb_of (ts ns) : 
+(comb ts ns).fst < 0 → 
+(∀ x ∈ (comb ts ns).snd, x = (0 : int)) → 
+unsat_comb ts ns := 
 begin intros h1 h2, exact ⟨h1,h2⟩ end
 
-def unsat_comb (ts ns) : Prop :=
-let t := comb ts ns in 
-if t.const < 0 ∧ ∀ x ∈ t.coeffs, x = (0 : int)
-then true
-else false
-
-lemma unsat_of_unsat_comb {ts : polytope} (ns : list nat) :
-  (unsat_comb ts ns) → ts.unsat :=
+lemma unsat_of_unsat_comb (ns les) :
+  (unsat_comb les ns) → clause.unsat ([], les) :=
 begin
   intros h1 h2, cases h2 with v h2, 
-  have h3 := comb_holds ns h2,
-  by_cases h4 : (comb ts ns).const < 0 ∧ 
-             ∀ x ∈ (comb ts ns).coeffs, x = (0 : int),
-  { cases h4 with hl hr, 
-    cases (comb ts ns) with b as,
-    simp_omega at h3, 
-    rw [val_aux_eq_zero hr, add_zero, ← not_lt] at h3,
-    apply h3 hl },
-  { simp only [unsat_comb] at h1, 
-    rw if_neg h4 at h1, exact h1 }
+  have h3 := comb_holds ns h2.right,
+  cases h1 with hl hr, 
+  cases (comb les ns) with b as,
+  simp_omega at h3, 
+  rw [coeffs.val_eq_zero hr, add_zero, ← not_lt] at h3,
+  apply h3 hl 
 end
 
+#exit
 lemma unsat_of_unsat_comb' (ts : polytope) (ns : list nat) :
   (unsat_comb' ts ns) → ts.unsat :=
 begin
